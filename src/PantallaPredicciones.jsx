@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
-import { GRUPOS, LETRAS_GRUPOS, EQUIPO_POR_CODIGO } from "./datos/equipos";
-import { partidosDeGrupo } from "./datos/partidos";
-import { calcularTabla, empatesDuros } from "./logica/clasificacion";
-import { puntosPartidoGrupo } from "./logica/motorPuntaje";
-import { leerResultados } from "./admin";
-import Bandera from "./Bandera";
+import { useState, useEffect } from 'react';
+import { GRUPOS, LETRAS_GRUPOS, EQUIPO_POR_CODIGO } from './datos/equipos';
+import { partidosDeGrupo } from './datos/partidos';
+import { calcularTabla, empatesDuros } from './logica/clasificacion';
+import { puntosPartidoGrupo } from './logica/motorPuntaje';
+import { leerResultados } from './admin';
+import Bandera from './Bandera';
 
 const ZONAS = {
   MX: { offset: -6 },
@@ -15,10 +15,12 @@ const ZONAS = {
 function formatearFecha(fechaUTC, zona) {
   const off = (ZONAS[zona] || ZONAS.MX).offset;
   const d = new Date(new Date(fechaUTC).getTime() + off * 3600 * 1000);
-  const dias = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
-  return `${dias[d.getUTCDay()]} ${d.getUTCDate()}/${d.getUTCMonth() + 1} · ${String(
-    d.getUTCHours()
-  ).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+  const dias = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+  return `${dias[d.getUTCDay()]} ${d.getUTCDate()}/${
+    d.getUTCMonth() + 1
+  } · ${String(d.getUTCHours()).padStart(2, '0')}:${String(
+    d.getUTCMinutes()
+  ).padStart(2, '0')}`;
 }
 
 export default function PantallaPredicciones({
@@ -26,10 +28,10 @@ export default function PantallaPredicciones({
   onCambio,
   ordenFairPlay,
   onCambioFairPlay,
-  zona = "MX",
+  zona = 'MX',
   bloqueado,
 }) {
-  const [grupoActivo, setGrupoActivo] = useState("A");
+  const [grupoActivo, setGrupoActivo] = useState('A');
   const [resultadosReales, setResultadosReales] = useState({});
 
   useEffect(() => {
@@ -37,7 +39,7 @@ export default function PantallaPredicciones({
   }, []);
 
   function cambiarMarcador(idPartido, lado, valor) {
-    if (valor !== "" && !/^\d{1,2}$/.test(valor)) return;
+    if (valor !== '' && !/^\d{1,2}$/.test(valor)) return;
     onCambio({
       ...marcadores,
       [idPartido]: { ...marcadores[idPartido], [lado]: valor },
@@ -50,7 +52,13 @@ export default function PantallaPredicciones({
   // ¿El grupo activo tiene sus 6 partidos con marcador completo?
   const grupoCompleto = partidos.every((p) => {
     const m = marcadores[p.id];
-    return m && m.local !== "" && m.visita !== "" && m.local != null && m.visita != null;
+    return (
+      m &&
+      m.local !== '' &&
+      m.visita !== '' &&
+      m.local != null &&
+      m.visita != null
+    );
   });
 
   // Solo buscamos empates de fair play si el grupo está completo.
@@ -59,10 +67,19 @@ export default function PantallaPredicciones({
     : [];
   const ordenGrupo = (ordenFairPlay && ordenFairPlay[grupoActivo]) || null;
 
-  const tabla = calcularTabla(equiposDelGrupo, partidos, marcadores, {}, ordenGrupo);
+  const tabla = calcularTabla(
+    equiposDelGrupo,
+    partidos,
+    marcadores,
+    {},
+    ordenGrupo
+  );
 
   function definirOrden(nuevoOrdenDelGrupo) {
-    onCambioFairPlay({ ...(ordenFairPlay || {}), [grupoActivo]: nuevoOrdenDelGrupo });
+    onCambioFairPlay({
+      ...(ordenFairPlay || {}),
+      [grupoActivo]: nuevoOrdenDelGrupo,
+    });
   }
 
   return (
@@ -73,8 +90,10 @@ export default function PantallaPredicciones({
             key={letra}
             onClick={() => setGrupoActivo(letra)}
             className={
-              "shrink-0 w-11 h-11 rounded-full font-bold text-sm transition " +
-              (grupoActivo === letra ? "bg-emerald-600 text-white shadow" : "bg-slate-100 text-slate-600")
+              'shrink-0 w-11 h-11 rounded-full font-bold text-sm transition ' +
+              (grupoActivo === letra
+                ? 'bg-emerald-600 text-white shadow'
+                : 'bg-slate-100 text-slate-600')
             }
           >
             {letra}
@@ -99,35 +118,52 @@ export default function PantallaPredicciones({
             const visita = EQUIPO_POR_CODIGO[p.visita];
             const m = marcadores[p.id] || {};
             return (
-              <li key={p.id} className="bg-white rounded-xl px-3 py-4 shadow-sm">
+              <li
+                key={p.id}
+                className="bg-white rounded-xl px-3 py-4 shadow-sm"
+              >
                 <p className="text-center text-xs text-slate-400 mb-3">
                   {formatearFecha(p.fechaUTC, zona)}
                 </p>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
                     <Bandera iso={local.iso} tam={44} />
-                    <span className="font-semibold text-sm text-slate-700">{local.abrev}</span>
+                    <span className="font-semibold text-sm text-slate-700">
+                      {local.abrev}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-1.5 pt-1">
                     <input
-                      type="text" inputMode="numeric" disabled={bloqueado}
-                      value={m.local || ""}
-                      onChange={(e) => cambiarMarcador(p.id, "local", e.target.value)}
+                      type="text"
+                      inputMode="numeric"
+                      disabled={bloqueado}
+                      value={m.local || ''}
+                      onChange={(e) =>
+                        cambiarMarcador(p.id, 'local', e.target.value)
+                      }
                       className="w-11 h-11 text-center text-lg font-bold border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:outline-none disabled:bg-slate-100"
                     />
-                    <span className="text-slate-300 text-xs font-medium">vs</span>
+                    <span className="text-slate-300 text-xs font-medium">
+                      vs
+                    </span>
                     <input
-                      type="text" inputMode="numeric" disabled={bloqueado}
-                      value={m.visita || ""}
-                      onChange={(e) => cambiarMarcador(p.id, "visita", e.target.value)}
+                      type="text"
+                      inputMode="numeric"
+                      disabled={bloqueado}
+                      value={m.visita || ''}
+                      onChange={(e) =>
+                        cambiarMarcador(p.id, 'visita', e.target.value)
+                      }
                       className="w-11 h-11 text-center text-lg font-bold border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:outline-none disabled:bg-slate-100"
                     />
                   </div>
 
                   <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
                     <Bandera iso={visita.iso} tam={44} />
-                    <span className="font-semibold text-sm text-slate-700">{visita.abrev}</span>
+                    <span className="font-semibold text-sm text-slate-700">
+                      {visita.abrev}
+                    </span>
                   </div>
                 </div>
                 <EtiquetaPuntos prediccion={m} real={resultadosReales[p.id]} />
@@ -175,10 +211,10 @@ function DesempateFairPlay({ conjunto, ordenActual, onDefinir }) {
         ⚖️ Empate que decides tú
       </p>
       <p className="text-xs text-amber-700 mb-3">
-        Estos equipos quedan empatados en todos los criterios (puntos, diferencia
-        de goles y goles). En la realidad se desempataría por fair play (tarjetas),
-        algo que no se puede predecir. Ordénalos como crees que quedarán — esto
-        afecta tu bracket.
+        Estos equipos quedan empatados en todos los criterios (puntos,
+        diferencia de goles y goles). En la realidad se desempataría por fair
+        play (tarjetas), algo que no se puede predecir. Ordénalos como crees que
+        quedarán — esto afecta tu bracket.
       </p>
       <ul className="space-y-2">
         {orden.map((codigo, i) => {
@@ -221,26 +257,49 @@ function EtiquetaPuntos({ prediccion, real }) {
   if (!real || real.local == null || real.visita == null) return null;
   const r = puntosPartidoGrupo(prediccion, real);
   const gano = r.puntos > 0;
-  const partes = gano ? r.motivo.split(" · ") : [];
+  const partes = gano ? r.motivo.split(' · ') : [];
   return (
-    <div className={"mt-3 -mx-3 -mb-4 px-3 py-2.5 rounded-b-xl border-l-4 " + (gano ? "border-emerald-500 bg-emerald-50" : "border-slate-300 bg-slate-50")}>
+    <div
+      className={
+        'mt-3 -mx-3 -mb-4 px-3 py-2.5 rounded-b-xl border-l-4 ' +
+        (gano
+          ? 'border-emerald-500 bg-emerald-50'
+          : 'border-slate-300 bg-slate-50')
+      }
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 whitespace-nowrap">
-          <span className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Final</span>
-          <span className="text-sm font-bold text-slate-700 tabular-nums">{real.local} - {real.visita}</span>
+          <span className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">
+            Final
+          </span>
+          <span className="text-sm font-bold text-slate-700 tabular-nums">
+            {real.local} - {real.visita}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           {gano ? (
             <div className="flex flex-col items-end gap-0.5">
               {partes.map((parte, i) => (
-                <span key={i} className="text-[11px] leading-tight text-emerald-700 font-medium">{parte}</span>
+                <span
+                  key={i}
+                  className="text-[11px] leading-tight text-emerald-700 font-medium"
+                >
+                  {parte}
+                </span>
               ))}
             </div>
           ) : (
-            <span className="text-xs text-slate-400 font-medium">Sin aciertos</span>
+            <span className="text-xs text-slate-400 font-medium">
+              Sin aciertos
+            </span>
           )}
-          <span className={"text-base font-extrabold tabular-nums min-w-[2.5rem] text-right " + (gano ? "text-emerald-600" : "text-slate-400")}>
-            {gano ? `+${r.puntos}` : "0"}
+          <span
+            className={
+              'text-base font-extrabold tabular-nums min-w-[2.5rem] text-right ' +
+              (gano ? 'text-emerald-600' : 'text-slate-400')
+            }
+          >
+            {gano ? `+${r.puntos}` : '0'}
           </span>
         </div>
       </div>
@@ -251,7 +310,9 @@ function EtiquetaPuntos({ prediccion, real }) {
 function TablaGrupo({ tabla }) {
   return (
     <div className="mt-6 bg-white rounded-xl shadow-sm overflow-hidden">
-      <h3 className="text-sm font-semibold px-3 py-2 bg-slate-100 text-slate-600">Tabla del grupo (en vivo)</h3>
+      <h3 className="text-sm font-semibold px-3 py-2 bg-slate-100 text-slate-600">
+        Tabla del grupo (en vivo)
+      </h3>
       <table className="w-full text-sm">
         <thead>
           <tr className="text-slate-400 text-xs">
@@ -266,9 +327,14 @@ function TablaGrupo({ tabla }) {
         <tbody>
           {tabla.map((fila) => {
             const eq = EQUIPO_POR_CODIGO[fila.eq];
-            const colorFila = fila.pos <= 2 ? "bg-emerald-50" : fila.pos === 3 ? "bg-amber-50" : "";
+            const colorFila =
+              fila.pos <= 2
+                ? 'bg-emerald-50'
+                : fila.pos === 3
+                ? 'bg-amber-50'
+                : '';
             return (
-              <tr key={fila.eq} className={"border-t " + colorFila}>
+              <tr key={fila.eq} className={'border-t ' + colorFila}>
                 <td className="px-3 py-2 text-slate-400">{fila.pos}</td>
                 <td className="py-2">
                   <span className="flex items-center gap-2">
@@ -277,7 +343,9 @@ function TablaGrupo({ tabla }) {
                   </span>
                 </td>
                 <td className="text-center px-2 py-2">{fila.pj}</td>
-                <td className="text-center px-2 py-2">{fila.dg > 0 ? "+" + fila.dg : fila.dg}</td>
+                <td className="text-center px-2 py-2">
+                  {fila.dg > 0 ? '+' + fila.dg : fila.dg}
+                </td>
                 <td className="text-center px-2 py-2">{fila.gf}</td>
                 <td className="text-center px-2 py-2 font-bold">{fila.pts}</td>
               </tr>
@@ -285,7 +353,9 @@ function TablaGrupo({ tabla }) {
           })}
         </tbody>
       </table>
-      <p className="text-xs text-slate-400 px-3 py-2">🟢 Clasifican (1º y 2º) · 🟡 3º (posible mejor tercero)</p>
+      <p className="text-xs text-slate-400 px-3 py-2">
+        🟢 Clasifican (1º y 2º) · 🟡 3º (posible mejor tercero)
+      </p>
     </div>
   );
 }

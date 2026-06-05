@@ -1,16 +1,12 @@
 // ============================================================
-// MOTOR DEL BRACKET — Arma el árbol de eliminatorias de un participante
-// a partir de sus marcadores de fase de grupos.
-// Verificado con pruebas (ver pruebasBracket.js).
+// MOTOR DEL BRACKET — Arma el árbol de eliminatorias de un participante.
 //
-// Pasos:
-//  1) Clasifica cada grupo (1º, 2º, 3º) con desempates Art. 13.
-//  2) Elige los 8 mejores terceros (Art. 13 sección terceros).
-//  3) Aplica el Anexo C para colocar cada tercero en su casilla del R32.
-//  4) Devuelve la estructura del R32 con equipos colocados.
-//
-// ordenFairPlay (opcional): { "A": ["A3","A1"], ... } orden elegido por el
-// usuario para los empates que solo se resuelven por fair play.
+// Desempates de fair play (dos mecanismos DISTINTOS):
+//  - ordenFairPlay: empates DENTRO de un grupo (quién es 2º vs 3º, etc.)
+//    Forma: { "A": ["A3","A1"], "F": ["F2","F3"] }
+//  - desempateTerceros: empate ENTRE terceros de distintos grupos que
+//    cruza el corte 8º/9º (qué tercero entra al R32). Es un orden de
+//    LETRAS de grupo elegido por el usuario, ej: ["J","H","I"].
 // ============================================================
 import { GRUPOS, LETRAS_GRUPOS } from "../datos/equipos";
 import { partidosDeGrupo } from "../datos/partidos";
@@ -19,7 +15,6 @@ import { ANEXO_C } from "../datos/anexoC";
 import { R32, COLUMNA_A_PARTIDO } from "../datos/cruces";
 import { R16, CUARTOS, SEMIS, TERCER_LUGAR, FINAL } from "../datos/cruces";
 
-// Devuelve la clasificación de los 12 grupos y la lista de terceros con stats.
 function clasificarTodosLosGrupos(marcadores, ordenFairPlay = {}) {
   const primeros = {};
   const segundos = {};
@@ -46,24 +41,76 @@ function clasificarTodosLosGrupos(marcadores, ordenFairPlay = {}) {
   return { primeros, segundos, tercerosPorGrupo, tercerosConStats };
 }
 
-// Ordena los 12 terceros y devuelve los 8 mejores (Art. 13 sección terceros).
-function elegirMejoresTerceros(tercerosConStats) {
-  const ordenados = [...tercerosConStats].sort(
+// Ordena los 12 terceros. El desempate por fair play (orden de letras de
+// grupo que decide el usuario) reemplaza al alfabético; el alfabético queda
+// como último recurso para que nada se rompa antes de resolver.
+function rankearTerceros(tercerosConStats, desempateTerceros = []) {
+  const idxFP = (g) => {
+    const i = desempateTerceros.indexOf(g);
+    return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+  };
+  return [...tercerosConStats].sort(
     (a, b) =>
       b.pts - a.pts ||
       b.dg - a.dg ||
       b.gf - a.gf ||
+      idxFP(a.grupo) - idxFP(b.grupo) ||
       a.grupo.localeCompare(b.grupo)
   );
-  return ordenados.slice(0, 8);
 }
 
-// Construye el Round de 32 (equipos colocados) a partir de los marcadores.
-export function construirRound32(marcadores, ordenFairPlay = {}) {
+function elegirMejoresTerceros(tercerosConStats, desempateTerceros = []) {
+  return rankearTerceros(tercerosConStats, desempateTerceros).slice(0, 8);
+}
+
+// Detecta el empate de terceros que CRUZA el corte 8º/9º (el único que
+// cambia el bracket). Devuelve [] si no hay nada que resolver.
+// Cada elemento: { equipos:["H","I","J"], cupos:1, pts, dg, gf, resuelto }
+export function empatesTerceros(marcadores, ordenFairPlay = {}, desempateTerceros = []) {
+  const { tercerosConStats } = clasificarTodosLosGrupos(marcadores, ordenFairPlay);
+  const ord = [...tercerosConStats].sort(
+    (a, b) => b.pts - a.pts || b.dg - a.dg || b.gf - a.gf
+  );
+  const empates = [];
+  let acumulado = 0;
+  let i = 0;
+  while (i < ord.length) {
+    let j = i + 1;
+    while (
+      j < ord.length &&
+      ord[j].pts === ord[i].pts &&
+      ord[j].dg === ord[i].dg &&
+      ord[j].gf === ord[i].gf
+    ) {
+      j++;
+    }
+    const bloque = ord.slice(i, j);
+    const inicio = acumulado; // nº de terceros ya colocados antes del bloque
+    const fin = acumulado + bloque.length;
+    // Solo importa si el bloque cruza la línea 8/9 (algunos entran y otros no)
+    if (bloque.length > 1 && inicio < 8 && fin > 8) {
+      const equipos = bloque.map((t) => t.grupo);
+      const resuelto = equipos.every((g) => desempateTerceros.includes(g));
+      empates.push({
+        equipos,
+        cupos: 8 - inicio, // cuántos de este bloque clasifican
+        pts: bloque[0].pts,
+        dg: bloque[0].dg,
+        gf: bloque[0].gf,
+        resuelto,
+      });
+    }
+    acumulado = fin;
+    i = j;
+  }
+  return empates;
+}
+
+export function construirRound32(marcadores, ordenFairPlay = {}, desempateTerceros = []) {
   const { primeros, segundos, tercerosPorGrupo, tercerosConStats } =
     clasificarTodosLosGrupos(marcadores, ordenFairPlay);
 
-  const mejores8 = elegirMejoresTerceros(tercerosConStats);
+  const mejores8 = elegirMejoresTerceros(tercerosConStats, desempateTerceros);
   const gruposClasifican = mejores8.map((t) => t.grupo).sort().join("");
   const patron = ANEXO_C[gruposClasifican];
 
@@ -98,7 +145,6 @@ export function construirRound32(marcadores, ordenFairPlay = {}) {
   };
 }
 
-// Resuelve el bracket completo a partir del R32 (equipos colocados) y los avances.
 export function resolverBracketCompleto(r32Equipos, avances) {
   const win = {};
   const lose = {};
@@ -130,7 +176,6 @@ export function resolverBracketCompleto(r32Equipos, avances) {
   return { win, lose, rondas };
 }
 
-// Detecta grupos donde hay equipos empatados que solo se resolverían por fair play.
 export function detectarEmpatesFairPlay(resultados) {
   const avisos = [];
   for (const L of LETRAS_GRUPOS) {

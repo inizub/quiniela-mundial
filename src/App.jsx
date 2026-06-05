@@ -34,6 +34,7 @@ export default function App() {
   const [marcadoresGrupos, setMarcadoresGrupos] = useState({});
   const [bracketPred, setBracketPred] = useState({ avances: {}, marcadores: {} });
   const [ordenFairPlay, setOrdenFairPlay] = useState({});
+  const [desempateTerceros, setDesempateTerceros] = useState([]);
   const [premios, setPremios] = useState({});
   const [zona, setZona] = useState("MX");
 
@@ -58,6 +59,7 @@ export default function App() {
             setMarcadoresGrupos(datos.marcadoresGrupos || {});
             setBracketPred(datos.bracket || { avances: {}, marcadores: {} });
             setOrdenFairPlay(datos.ordenFairPlay || {});
+            setDesempateTerceros(datos.desempateTerceros || []);
             setPremios(datos.premios || {});
             if (datos.zona) setZona(datos.zona);
           }
@@ -69,6 +71,27 @@ export default function App() {
       }
     }
     inicializar();
+  }, []);
+
+  // Escucha en vivo el candado de predicciones: si el admin cierra, a todos
+  // se les bloquea al instante sin necesidad de recargar.
+  useEffect(() => {
+    const canal = supabase
+      .channel("candado-predicciones")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "config" },
+        (payload) => {
+          const fila = payload.new;
+          if (fila && fila.clave === "predicciones_abiertas") {
+            setAbiertas(fila.valor === true);
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(canal);
+    };
   }, []);
 
   const bloqueado = abiertas === false;
@@ -85,26 +108,32 @@ export default function App() {
   async function guardarTodo() {
     if (!participante) return;
     setEstadoGuardado("guardando");
-    const ok = await guardarPrediccion(participante.id, {
+    const res = await guardarPrediccion(participante.id, {
       marcadoresGrupos,
       bracket: bracketPred,
       ordenFairPlay,
+      desempateTerceros,
       premios,
       zona,
     });
-    setEstadoGuardado(ok ? "guardado" : "error");
+    if (res === "cerrado") {
+      setAbiertas(false);
+      setEstadoGuardado("cerrado");
+    } else {
+      setEstadoGuardado(res ? "guardado" : "error");
+    }
   }
-
   function alCambiarGrupos(nuevos) { setMarcadoresGrupos(nuevos); setEstadoGuardado("idle"); }
   function alCambiarBracket(nuevo) { setBracketPred(nuevo); setEstadoGuardado("idle"); }
   function alCambiarFairPlay(nuevo) { setOrdenFairPlay(nuevo); setEstadoGuardado("idle"); }
+  function alCambiarDesempateTerceros(nuevo) { setDesempateTerceros(nuevo); setEstadoGuardado("idle"); }
   function alCambiarPremios(nuevo) { setPremios(nuevo); setEstadoGuardado("idle"); }
 
   async function alCambiarZona(nuevaZona) {
     setZona(nuevaZona);
     if (participante) {
       await guardarPrediccion(participante.id, {
-        marcadoresGrupos, bracket: bracketPred, ordenFairPlay, premios, zona: nuevaZona,
+        marcadoresGrupos, bracket: bracketPred, ordenFairPlay, desempateTerceros, premios, zona: nuevaZona,
       });
     }
   }
@@ -184,7 +213,9 @@ export default function App() {
             marcadoresGrupos={marcadoresGrupos}
             bracketPred={bracketPred}
             ordenFairPlay={ordenFairPlay}
+            desempateTerceros={desempateTerceros}
             onCambio={alCambiarBracket}
+            onCambioDesempateTerceros={alCambiarDesempateTerceros}
             bloqueado={bloqueado}
           />
         ) : <PantallaSinLink />
@@ -219,6 +250,9 @@ export default function App() {
             </button>
             {estadoGuardado === "guardado" && (
               <span className="text-emerald-600 text-sm font-medium">✅ Guardado</span>
+            )}
+            {estadoGuardado === "cerrado" && (
+              <span className="text-red-600 text-sm font-medium">🔒 Predicciones cerradas</span>
             )}
             {estadoGuardado === "error" && (
               <span className="text-red-600 text-sm font-medium">⚠️ Error</span>

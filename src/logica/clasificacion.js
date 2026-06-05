@@ -1,27 +1,11 @@
 // ============================================================
 // CÁLCULO DE LA TABLA DE UN GRUPO + DESEMPATES (Art. 13 FIFA)
-// Lógica separada de la interfaz. Probada con casos automatizados.
-//
-// Orden de desempate aplicado:
-//  Paso 1 (solo enfrentamientos directos entre los empatados):
-//     a) puntos directos  b) dif. goles directos  c) goles a favor directos
-//  Paso 2 (todos los partidos del grupo):
-//     d) dif. goles total  e) goles a favor total  f) fair play*
-//  Paso 3:
-//     g) ranking FIFA reciente  h) ranking FIFA anterior*
-//  * fair play y ranking se SALTAN sin romperse si no hay datos.
-//
-// Cuando dos o más equipos empatan en TODO lo calculable (el "empate duro"),
-// se respeta el orden manual elegido por el usuario (ordenFairPlay), si existe.
+// Orden oficial Mundial 2026:
+//  Paso 1 (solo entre los empatados): a) pts directos b) dg directos c) gf directos
+//  Paso 2: si SIGUEN empatados algunos, se re-aplican a/b/c SOLO entre ellos.
+//          Si aun así no decide -> d) dg total e) gf total f) (fair play)
+//  Paso 3: g/h) ranking FIFA.  Empate "duro" -> orden manual del usuario.
 // ============================================================
-
-// Calcula la tabla ordenada de un grupo.
-// equipos:       ["A1","A2","A3","A4"]
-// partidos:      [{id, local, visita}, ...]
-// resultados:    { "G-A1": {local:"2", visita:"1"}, ... }
-// rankingFIFA:   { "A1": 5, ... }  (opcional; menor número = mejor)
-// ordenFairPlay: ["A3","A1",...]  (opcional; orden elegido por el usuario para
-//                los equipos empatados en todo)
 export function calcularTabla(
   equipos,
   partidos,
@@ -29,7 +13,6 @@ export function calcularTabla(
   rankingFIFA = {},
   ordenFairPlay = null
 ) {
-  // 1) Estadísticas base de cada equipo
   const st = {};
   for (const e of equipos)
     st[e] = { eq: e, pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0, pts: 0, dg: 0 };
@@ -56,12 +39,12 @@ export function calcularTabla(
   }
   for (const e of equipos) st[e].dg = st[e].gf - st[e].gc;
 
-  // Mini-liga entre un subconjunto (solo sus enfrentamientos directos)
-  function directos(grupo) {
+  // Mini-liga: SOLO los partidos donde AMBOS equipos están en `conjunto`.
+  function miniLiga(conjunto) {
     const m = {};
-    for (const e of grupo) m[e] = { pts: 0, dg: 0, gf: 0 };
+    for (const e of conjunto) m[e] = { pts: 0, dg: 0, gf: 0 };
     for (const j of jugados) {
-      if (grupo.includes(j.local) && grupo.includes(j.visita)) {
+      if (conjunto.includes(j.local) && conjunto.includes(j.visita)) {
         m[j.local].gf += j.gl; m[j.visita].gf += j.gv;
         m[j.local].dg += j.gl - j.gv; m[j.visita].dg += j.gv - j.gl;
         if (j.gl > j.gv) m[j.local].pts += 3;
@@ -72,49 +55,86 @@ export function calcularTabla(
     return m;
   }
 
-  // Devuelve <0 si "a" va antes (mejor clasificado) que "b".
-  function comparar(a, b, conjuntoEmpatados) {
-    // PASO 1: criterios directos entre el conjunto empatado a puntos
-    const d = directos(conjuntoEmpatados);
-    if (d[a].pts !== d[b].pts) return d[b].pts - d[a].pts;
-    if (d[a].dg !== d[b].dg) return d[b].dg - d[a].dg;
-    if (d[a].gf !== d[b].gf) return d[b].gf - d[a].gf;
-    // PASO 2: criterios sobre todo el grupo
-    if (st[a].dg !== st[b].dg) return st[b].dg - st[a].dg;
-    if (st[a].gf !== st[b].gf) return st[b].gf - st[a].gf;
-    // f) fair play: se salta (no hay datos de tarjetas en la quiniela)
-    // PASO 3: ranking FIFA (menor = mejor). Si falta para alguno, se salta.
-    const ra = rankingFIFA[a];
-    const rb = rankingFIFA[b];
-    if (ra != null && rb != null && ra !== rb) return ra - rb;
-    // Empate "duro": si el usuario eligió un orden manual (fair play), respetarlo.
-    if (ordenFairPlay) {
-      const ia = ordenFairPlay.indexOf(a);
-      const ib = ordenFairPlay.indexOf(b);
-      if (ia !== -1 && ib !== -1) return ia - ib;
+  // Ordena un conjunto por una lista de claves (mayor = mejor) y lo parte
+  // en sub-bloques de equipos que quedan IGUALES en todas esas claves.
+  function partir(conjunto, clave) {
+    const arr = conjunto.map((e) => ({ e, k: clave(e) }));
+    arr.sort((a, b) => {
+      for (let i = 0; i < a.k.length; i++) if (a.k[i] !== b.k[i]) return b.k[i] - a.k[i];
+      return 0;
+    });
+    const bloques = [];
+    let i = 0;
+    while (i < arr.length) {
+      let j = i + 1;
+      while (j < arr.length && arr[j].k.every((v, idx) => v === arr[i].k[idx])) j++;
+      bloques.push(arr.slice(i, j).map((x) => x.e));
+      i = j;
     }
-    return 0;
+    return bloques;
   }
 
-  // Ordenar por puntos y desempatar dentro de cada bloque de igual puntaje
-  const orden = [...equipos].sort((a, b) => st[b].pts - st[a].pts);
-  const resultado = [];
-  let i = 0;
-  while (i < orden.length) {
-    let j = i;
-    while (j < orden.length && st[orden[j]].pts === st[orden[i]].pts) j++;
-    const bloque = orden.slice(i, j);
-    if (bloque.length === 1) resultado.push(bloque[0]);
-    else resultado.push(...[...bloque].sort((a, b) => comparar(a, b, bloque)));
-    i = j;
+  // Empate "duro" final: respeta el orden manual del usuario si existe.
+  function resolverFairPlay(b) {
+    if (b.length === 1) return b;
+    if (ordenFairPlay) {
+      const conIndice = b.every((e) => ordenFairPlay.indexOf(e) !== -1);
+      if (conIndice) {
+        return [...b].sort((a, c) => ordenFairPlay.indexOf(a) - ordenFairPlay.indexOf(c));
+      }
+    }
+    return b; // irresoluble: se deja en orden estable
   }
+
+  // Pasos d) e) + ranking + fair play. En cadena (no reinicia).
+  function criteriosFinales(conjunto) {
+    const bloques = partir(conjunto, (e) => [st[e].dg, st[e].gf]); // d) dg total e) gf total
+    const salida = [];
+    for (const b of bloques) {
+      if (b.length === 1) { salida.push(b[0]); continue; }
+      const todosConRanking = b.every((e) => rankingFIFA[e] != null);
+      if (todosConRanking) {
+        const partesR = partir(b, (e) => [-(rankingFIFA[e])]); // menor ranking = mejor
+        for (const pr of partesR) salida.push(...resolverFairPlay(pr));
+      } else {
+        salida.push(...resolverFairPlay(b));
+      }
+    }
+    return salida;
+  }
+
+  // Paso 2: re-aplicar a/b/c SOLO entre los equipos que siguen empatados.
+  function reaplicarDirectos(conjunto) {
+    const m = miniLiga(conjunto);
+    const bloques = partir(conjunto, (e) => [m[e].pts, m[e].dg, m[e].gf]);
+    const salida = [];
+    for (const b of bloques) {
+      if (b.length === 1) salida.push(b[0]);
+      else salida.push(...criteriosFinales(b));
+    }
+    return salida;
+  }
+
+  // Rompe el empate de un conjunto igualado en PUNTOS totales.
+  function romperEmpate(conjunto) {
+    if (conjunto.length === 1) return conjunto;
+    const m = miniLiga(conjunto); // Paso 1: a/b/c sobre todo el conjunto
+    const bloques = partir(conjunto, (e) => [m[e].pts, m[e].dg, m[e].gf]);
+    const salida = [];
+    for (const b of bloques) {
+      if (b.length === 1) salida.push(b[0]);
+      else salida.push(...reaplicarDirectos(b)); // Paso 2
+    }
+    return salida;
+  }
+
+  const bloquesPts = partir(equipos, (e) => [st[e].pts]);
+  const resultado = [];
+  for (const b of bloquesPts) resultado.push(...romperEmpate(b));
 
   return resultado.map((e, idx) => ({ pos: idx + 1, ...st[e] }));
 }
 
-// Detecta, en un grupo ya calculado, los conjuntos de equipos que quedaron
-// empatados en TODO lo calculable (mismos pts, dg y gf) y por tanto solo se
-// distinguen por fair play. Devuelve [[códigos empatados], ...].
 export function empatesDuros(equipos, partidos, resultados) {
   const tabla = calcularTabla(equipos, partidos, resultados);
   const grupos = [];

@@ -38,15 +38,34 @@ export async function leerPrediccion(participanteId) {
 }
 
 // Guarda (crea o actualiza) la predicción de un participante.
-// "datos" es el objeto completo con todos los marcadores, bracket, etc.
+// Guarda (crea o actualiza) la predicción de un participante.
+// Antes de escribir, comprueba en el servidor que las predicciones sigan
+// abiertas. Así, aunque alguien tenga la app abierta desde hace días, no
+// puede guardar una vez cerradas.
 export async function guardarPrediccion(participanteId, datos) {
+  // 1) Verificar el candado EN EL SERVIDOR (no en la pantalla del jugador).
+  const { data: cfg, error: errCfg } = await supabase
+    .from("config")
+    .select("valor")
+    .eq("clave", "predicciones_abiertas")
+    .maybeSingle();
+  if (errCfg) {
+    console.error("Error al verificar el estado de predicciones:", errCfg);
+    return false;
+  }
+  if (cfg?.valor !== true) {
+    console.warn("Predicciones cerradas: no se guarda.");
+    return "cerrado"; // señal para avisar al jugador
+  }
+
+  // 2) Guardar.
   const { error } = await supabase.from("predicciones").upsert(
     {
       participante_id: participanteId,
       datos: datos,
       actualizado_en: new Date().toISOString(),
     },
-    { onConflict: "participante_id" } // si ya existe, la actualiza
+    { onConflict: "participante_id" }
   );
   if (error) {
     console.error("Error al guardar la predicción:", error);

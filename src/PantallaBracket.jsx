@@ -1,12 +1,20 @@
 import { useState, useEffect } from "react";
 import { EQUIPO_POR_CODIGO } from "./datos/equipos";
 import { RONDAS } from "./datos/cruces";
-import { construirRound32, resolverBracketCompleto, detectarEmpatesFairPlay } from "./logica/motorBracket";
+import { construirRound32, resolverBracketCompleto, detectarEmpatesFairPlay, empatesTerceros } from "./logica/motorBracket";
 import { construirBracketReal, prepararParaPuntaje } from "./logica/bracketReal";
 import { puntosEliminatorias } from "./logica/motorPuntaje";
 import { leerResultados, leerBracketReal } from "./admin";
 import Bandera from "./Bandera";
 import VistaBracketCompleto from "./VistaBracketCompleto";
+import DesempateTerceros from "./DesempateTerceros";
+
+// Un equipo "de verdad" es letra de grupo (A–L) + posición (1–4), p.ej. "A2" o
+// "L1". Lo demás ("W89", "L101", null) son huecos por resolver. (El Grupo L
+// empieza por "L" igual que los placeholders de Loser, por eso no vale startsWith.)
+function esEquipoCodigo(e) {
+  return /^[A-L][1-4]$/.test(String(e));
+}
 
 function Equipo({ codigo, alineado = "left" }) {
   if (!codigo) return <span className="text-slate-300 text-sm">— por definir —</span>;
@@ -20,7 +28,7 @@ function Equipo({ codigo, alineado = "left" }) {
   );
 }
 
-export default function PantallaBracket({ marcadoresGrupos, bracketPred, ordenFairPlay, onCambio, bloqueado }) {
+export default function PantallaBracket({ marcadoresGrupos, bracketPred, ordenFairPlay, desempateTerceros, onCambio, onCambioDesempateTerceros, bloqueado }) {
   const [rondaActiva, setRondaActiva] = useState("R32");
   const [resultadosGruposReales, setResultadosGruposReales] = useState({});
   const [bracketRealRaw, setBracketRealRaw] = useState(null);
@@ -31,7 +39,7 @@ export default function PantallaBracket({ marcadoresGrupos, bracketPred, ordenFa
     leerBracketReal().then(setBracketRealRaw);
   }, []);
 
-  const base = construirRound32(marcadoresGrupos || {}, ordenFairPlay || {});
+  const base = construirRound32(marcadoresGrupos || {}, ordenFairPlay || {}, desempateTerceros || []);
 
   const totalGrupos = Object.keys(marcadoresGrupos || {}).filter((id) => {
     const m = marcadoresGrupos[id];
@@ -45,6 +53,12 @@ export default function PantallaBracket({ marcadoresGrupos, bracketPred, ordenFa
     return empates.filter((e) => !(ordenFairPlay && ordenFairPlay[e.grupo]));
   })();
 
+  // Empates de terceros que cruzan el corte 8º/9º (los que cambian el bracket).
+  const empatesTerc = gruposCompletos
+    ? empatesTerceros(marcadoresGrupos || {}, ordenFairPlay || {}, desempateTerceros || [])
+    : [];
+  const empatesTercPendientes = empatesTerc.filter((e) => !e.resuelto);
+
   const avances = bracketPred?.avances || {};
   const marcadores = bracketPred?.marcadores || {};
 
@@ -56,7 +70,7 @@ export default function PantallaBracket({ marcadoresGrupos, bracketPred, ordenFa
     const idx = avances.M104;
     if (idx == null || !finalEqs[idx]) return null;
     const c = finalEqs[idx];
-    return (typeof c === "string" && !c.startsWith("W") && !c.startsWith("L")) ? c : null;
+    return (typeof c === "string" && esEquipoCodigo(c)) ? c : null;
   })();
 
   const hayBracketReal =
@@ -68,7 +82,9 @@ export default function PantallaBracket({ marcadoresGrupos, bracketPred, ordenFa
       resultadosGruposReales,
       bracketRealRaw.marcadoresElim || {},
       bracketRealRaw.avancesElim || {},
-      bracketRealRaw.correccionesR32 || {}
+      bracketRealRaw.correccionesR32 || {},
+      bracketRealRaw.ordenFairPlay || {},
+      bracketRealRaw.desempateTerceros || []
     );
     const predParaPuntaje = prepararParaPuntaje(resuelto, marcadores, avances);
     const realParaPuntaje = prepararParaPuntaje(real, bracketRealRaw.marcadoresElim || {}, bracketRealRaw.avancesElim || {});
@@ -150,6 +166,24 @@ export default function PantallaBracket({ marcadoresGrupos, bracketPred, ordenFa
       </nav>
 
       <div className="p-4">
+        {empatesTercPendientes.length > 0 && (
+          <div className="mb-4 bg-amber-100 border border-amber-300 rounded-lg px-3 py-2.5 text-xs text-amber-800">
+            <p className="font-semibold mb-1">⚖️ Quedan desempates de terceros por resolver</p>
+            <p className="mb-2">
+              Hay terceros lugares empatados disputándose las últimas plazas. Defínelos
+              al final de esta pantalla para que tu bracket quede como tú quieres.
+            </p>
+            <button
+              onClick={() =>
+                document.getElementById("desempate-terceros")?.scrollIntoView({ behavior: "smooth", block: "start" })
+              }
+              className="bg-amber-500 text-white font-semibold rounded-lg px-3 py-1.5"
+            >
+              Ir a resolver ↓
+            </button>
+          </div>
+        )}
+
         {empatesPendientes.length > 0 && (
           <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
             ⚖️ Tienes empates por fair play sin ordenar en{" "}
@@ -178,11 +212,7 @@ export default function PantallaBracket({ marcadoresGrupos, bracketPred, ordenFa
             const avance = avanceSegunMarcador(partido);
             const esEmpate = avance === "empate";
             const equiposResueltos =
-              equipos[0] && equipos[1] &&
-              !String(equipos[0]).startsWith("W") &&
-              !String(equipos[0]).startsWith("L") &&
-              !String(equipos[1]).startsWith("W") &&
-              !String(equipos[1]).startsWith("L");
+              esEquipoCodigo(equipos[0]) && esEquipoCodigo(equipos[1]);
             const puntos = equiposResueltos ? desglosePuntos[partido] : null;
 
             if (avance === 0 || avance === 1) {
@@ -263,6 +293,14 @@ export default function PantallaBracket({ marcadoresGrupos, bracketPred, ordenFa
             );
           })}
         </ul>
+
+        <DesempateTerceros
+          empates={empatesTerc}
+          desempateTerceros={desempateTerceros || []}
+          tercerosPorGrupo={base.tercerosPorGrupo}
+          onCambio={onCambioDesempateTerceros}
+          bloqueado={bloqueado}
+        />
       </div>
     </main>
   );

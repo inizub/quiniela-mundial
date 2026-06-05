@@ -71,7 +71,9 @@ export async function obtenerPosiciones() {
       resultados,
       bracketReal.marcadoresElim || {},
       bracketReal.avancesElim || {},
-      bracketReal.correccionesR32 || {}
+      bracketReal.correccionesR32 || {},
+      bracketReal.ordenFairPlay || {},
+      bracketReal.desempateTerceros || []
     );
     realParaPuntaje = prepararParaPuntaje(real, bracketReal.marcadoresElim || {}, bracketReal.avancesElim || {});
   }
@@ -86,9 +88,14 @@ export async function obtenerPosiciones() {
     const calc = puntosTotales(datos, resultados, PARTIDOS_GRUPOS, premiosAdjudicados, p.id);
     let puntosElim = 0;
 
-    // Eliminatorias (solo si hay bracket real y el participante tiene bracket)
-    if (hayBracketReal && datos.bracket) {
-      const base = construirRound32(datos.marcadoresGrupos || {}, datos.ordenFairPlay || {});
+    // Eliminatorias: solo si hay bracket real Y el participante completó los 72
+    // grupos (sin eso su bracket no es válido y no debe sumar puntos fantasma).
+    if (hayBracketReal && datos.bracket && contarPartidosPredichos(datos) === 72) {
+      const base = construirRound32(
+        datos.marcadoresGrupos || {},
+        datos.ordenFairPlay || {},
+        datos.desempateTerceros || []
+      );
       const resuelto = resolverBracketCompleto(base.r32, datos.bracket.avances || {});
       const predParaPuntaje = prepararParaPuntaje(
         resuelto, datos.bracket.marcadores || {}, datos.bracket.avances || {}

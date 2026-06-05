@@ -3,8 +3,9 @@ import { EQUIPO_POR_CODIGO } from "./datos/equipos";
 import { RONDAS } from "./datos/cruces";
 import { leerResultados, leerBracketReal, guardarBracketReal } from "./admin";
 import { construirBracketReal } from "./logica/bracketReal";
-import { detectarEmpatesFairPlay } from "./logica/motorBracket";
+import { detectarEmpatesFairPlay, empatesTerceros } from "./logica/motorBracket";
 import Bandera from "./Bandera";
+import DesempateTerceros from "./DesempateTerceros";
 
 // Muestra un equipo (bandera + abreviatura) o un guion si no está definido.
 function Equipo({ codigo }) {
@@ -25,6 +26,8 @@ export default function AdminEliminatorias() {
     marcadoresElim: {},
     avancesElim: {},
     correccionesR32: {},
+    ordenFairPlay: {},
+    desempateTerceros: [],
   });
   const [rondaActiva, setRondaActiva] = useState("R32");
   const [cargando, setCargando] = useState(true);
@@ -33,7 +36,13 @@ export default function AdminEliminatorias() {
   async function recargar() {
     const [res, br] = await Promise.all([leerResultados(), leerBracketReal()]);
     setResultadosGrupos(res);
-    setBracketRealState(br);
+    setBracketRealState({
+      marcadoresElim: br.marcadoresElim || {},
+      avancesElim: br.avancesElim || {},
+      correccionesR32: br.correccionesR32 || {},
+      ordenFairPlay: br.ordenFairPlay || {},
+      desempateTerceros: br.desempateTerceros || [],
+    });
     setCargando(false);
   }
   useEffect(() => {
@@ -57,15 +66,24 @@ export default function AdminEliminatorias() {
     );
   }
 
-  // Detectar empates de grupo que solo se resuelven por fair play (con los resultados reales).
+  // Detectar empates de grupo que solo se resuelven por fair play.
   const empatesFairPlay = detectarEmpatesFairPlay(resultadosGrupos);
 
-  // Armar el bracket real con todo lo que hay.
+  // Detectar empates de terceros (corte 8º/9º) del Mundial real.
+  const empatesTerc = empatesTerceros(
+    resultadosGrupos,
+    bracketReal.ordenFairPlay || {},
+    bracketReal.desempateTerceros || []
+  );
+
+  // Armar el bracket real con todo lo que hay (incluye los desempates del admin).
   const real = construirBracketReal(
     resultadosGrupos,
     bracketReal.marcadoresElim,
     bracketReal.avancesElim,
-    bracketReal.correccionesR32
+    bracketReal.correccionesR32,
+    bracketReal.ordenFairPlay || {},
+    bracketReal.desempateTerceros || []
   );
 
   // --- Guardado ---
@@ -114,6 +132,22 @@ export default function AdminEliminatorias() {
             guardar(nuevo);
           }}
         />
+      )}
+
+      {/* Desempate de terceros del Mundial real (corte 8º/9º) */}
+      {empatesTerc.length > 0 && (
+        <div className="mb-4">
+          <DesempateTerceros
+            empates={empatesTerc}
+            desempateTerceros={bracketReal.desempateTerceros || []}
+            tercerosPorGrupo={real.base.tercerosPorGrupo}
+            onCambio={(nuevo) => {
+              const actualizado = { ...bracketReal, desempateTerceros: nuevo };
+              setBracketRealState(actualizado);
+              guardar(actualizado);
+            }}
+          />
+        </div>
       )}
 
       {/* Tabs de rondas */}
@@ -227,18 +261,6 @@ export default function AdminEliminatorias() {
 
 // --- Aviso de fair play para empates de grupo (flujo normal) ---
 function FairPlayGrupos({ empates, bracketReal, onGuardar }) {
-  // empates: [{ grupo, equipos: [codigos empatados], posiciones: [...] }]
-  // Guardamos el orden real elegido en bracketReal.ordenFairPlay[grupo] = [codigos en orden]
-  const orden = bracketReal.ordenFairPlay || {};
-
-  function elegirOrden(grupo, equiposOrdenados) {
-    const nuevo = {
-      ...bracketReal,
-      ordenFairPlay: { ...orden, [grupo]: equiposOrdenados },
-    };
-    onGuardar(nuevo);
-  }
-
   return (
     <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 mb-4">
       <p className="text-sm font-semibold text-amber-800 mb-1">
