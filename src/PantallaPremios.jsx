@@ -27,7 +27,7 @@ export default function PantallaPremios({ premios, onCambio, bloqueado }) {
 
       <div className="space-y-3">
         {PREMIOS.map((premio) => (
-          <div key={premio.clave} className="bg-white rounded-xl shadow-sm p-4">
+          <div key={premio.clave} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 transition-shadow hover:shadow-md">
             <div className="flex items-center justify-between mb-1">
               <span className="font-semibold text-sm text-slate-700">{premio.titulo}</span>
               <span className="text-xs font-bold text-emerald-600">+{premio.pts} pts</span>

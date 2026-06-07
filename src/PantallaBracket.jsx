@@ -156,8 +156,8 @@ export default function PantallaBracket({ marcadoresGrupos, bracketPred, ordenFa
             key={r.clave}
             onClick={() => setRondaActiva(r.clave)}
             className={
-              "shrink-0 px-3 h-9 rounded-full text-xs font-semibold transition " +
-              (rondaActiva === r.clave ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600")
+              "shrink-0 px-3 h-9 rounded-full text-xs font-semibold transition-all duration-150 active:scale-90 " +
+              (rondaActiva === r.clave ? "bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-md" : "bg-slate-100 text-slate-600")
             }
           >
             {r.nombre}
@@ -194,7 +194,7 @@ export default function PantallaBracket({ marcadoresGrupos, bracketPred, ordenFa
 
         <button
           onClick={() => setVistaCompleta(true)}
-          className="mb-4 w-full bg-slate-800 text-white text-sm font-semibold rounded-lg py-2.5"
+          className="mb-4 w-full bg-slate-800 text-white text-sm font-semibold rounded-lg py-2.5 active:scale-[0.99] transition-transform"
         >
           📷 Ver bracket completo
         </button>
@@ -232,7 +232,7 @@ export default function PantallaBracket({ marcadoresGrupos, bracketPred, ordenFa
                       disabled={bloqueado || !equipos[0] || !equipos[1]}
                       value={m.local || ""}
                       onChange={(e) => cambiarMarcador(partido, "local", e.target.value)}
-                      className="w-10 h-10 text-center text-lg font-bold border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:outline-none disabled:bg-slate-100"
+                      className={"w-10 h-10 text-center text-lg font-bold border-2 rounded-lg focus:border-emerald-500 focus:outline-none disabled:bg-slate-100 transition-colors " + (m.local !== "" && m.local != null ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-slate-200")}
                     />
                     <span className="text-slate-300 font-bold">:</span>
                     <input
@@ -240,7 +240,7 @@ export default function PantallaBracket({ marcadoresGrupos, bracketPred, ordenFa
                       disabled={bloqueado || !equipos[0] || !equipos[1]}
                       value={m.visita || ""}
                       onChange={(e) => cambiarMarcador(partido, "visita", e.target.value)}
-                      className="w-10 h-10 text-center text-lg font-bold border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:outline-none disabled:bg-slate-100"
+                      className={"w-10 h-10 text-center text-lg font-bold border-2 rounded-lg focus:border-emerald-500 focus:outline-none disabled:bg-slate-100 transition-colors " + (m.visita !== "" && m.visita != null ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-slate-200")}
                     />
                   </div>
                   <div className="flex-1 min-w-0 flex justify-end"><Equipo codigo={equipos[1]} alineado="right" /></div>

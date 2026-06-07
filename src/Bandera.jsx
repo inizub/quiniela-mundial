@@ -18,7 +18,7 @@ export default function Bandera({ iso, tam = 32, className = "" }) {
       height={Math.round(tam * 0.67)}
       alt=""
       loading="lazy"
-      className={"inline-block rounded-sm object-cover shadow-sm " + className}
+      className={"inline-block rounded object-cover shadow-md ring-1 ring-black/10 " + className}
       style={{ width: tam, height: Math.round(tam * 0.67) }}
     />
   );

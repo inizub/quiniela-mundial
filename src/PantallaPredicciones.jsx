@@ -90,9 +90,9 @@ export default function PantallaPredicciones({
             key={letra}
             onClick={() => setGrupoActivo(letra)}
             className={
-              'shrink-0 w-11 h-11 rounded-full font-bold text-sm transition ' +
+              'shrink-0 w-11 h-11 rounded-full font-bold text-sm transition-all duration-150 active:scale-90 ' +
               (grupoActivo === letra
-                ? 'bg-emerald-600 text-white shadow'
+                ? 'bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-md'
                 : 'bg-slate-100 text-slate-600')
             }
           >
@@ -103,7 +103,7 @@ export default function PantallaPredicciones({
 
       <main className="p-4 max-w-md mx-auto">
         <h2 className="text-base font-semibold mb-3 text-slate-700">
-          Grupo {grupoActivo} · Predice los marcadores
+          Grupo {grupoActivo}
         </h2>
 
         {bloqueado && (
@@ -142,7 +142,7 @@ export default function PantallaPredicciones({
                       onChange={(e) =>
                         cambiarMarcador(p.id, 'local', e.target.value)
                       }
-                      className="w-11 h-11 text-center text-lg font-bold border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:outline-none disabled:bg-slate-100"
+                      className={"w-11 h-11 text-center text-lg font-bold border-2 rounded-lg focus:border-emerald-500 focus:outline-none disabled:bg-slate-100 transition-colors " + (m.local !== '' && m.local != null ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-slate-200")}
                     />
                     <span className="text-slate-300 text-xs font-medium">
                       vs
@@ -155,7 +155,7 @@ export default function PantallaPredicciones({
                       onChange={(e) =>
                         cambiarMarcador(p.id, 'visita', e.target.value)
                       }
-                      className="w-11 h-11 text-center text-lg font-bold border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:outline-none disabled:bg-slate-100"
+                      className={"w-11 h-11 text-center text-lg font-bold border-2 rounded-lg focus:border-emerald-500 focus:outline-none disabled:bg-slate-100 transition-colors " + (m.visita !== '' && m.visita != null ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-slate-200")}
                     />
                   </div>
 

@@ -5,6 +5,7 @@ import {
   leerPrediccion,
   guardarPrediccion,
 } from "./almacenamiento";
+import PantallaBienvenida from "./PantallaBienvenida";
 import PantallaPredicciones from "./PantallaPredicciones";
 import PantallaPosiciones from "./PantallaPosiciones";
 import PantallaBracket from "./PantallaBracket";
@@ -25,6 +26,7 @@ function tokenDeLaUrl() {
 export default function App() {
   const [pantalla, setPantalla] = useState("predicciones");
   const [adminAbierto, setAdminAbierto] = useState(false);
+  const [entrado, setEntrado] = useState(false);
 
   const [participante, setParticipante] = useState(null);
   const [abiertas, setAbiertas] = useState(null);
@@ -145,10 +147,20 @@ export default function App() {
       </div>
     );
 
+  // Pantalla de bienvenida (splash) antes de entrar a la app.
+  if (!entrado) {
+    return (
+      <PantallaBienvenida
+        nombre={participante ? participante.nombre : null}
+        onEntrar={() => setEntrado(true)}
+      />
+    );
+  }
+
   // Panel de admin a pantalla completa.
   if (adminAbierto) {
     return (
-      <div className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-emerald-50/40 text-slate-900">
         <header className="bg-slate-800 text-white px-4 py-3 shadow sticky top-0 z-20 flex items-center justify-between">
           <h1 className="text-base font-bold">⚙️ Administración</h1>
           <button
@@ -186,57 +198,80 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="bg-emerald-700 text-white px-4 py-3 shadow sticky top-0 z-20">
-        <div className="flex items-center justify-between">
-          <h1 className="text-base font-bold">Quiniela Mundial 2026 ⚽</h1>
-          <span className="text-xs text-emerald-100">
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeIn 0.22s ease-out; }
+        @keyframes pop {
+          0%   { opacity: 0; transform: scale(0.8); }
+          60%  { opacity: 1; transform: scale(1.08); }
+          100% { transform: scale(1); }
+        }
+        .pop-in { animation: pop 0.3s ease-out; }
+      `}</style>
+
+      <header className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-600 text-white px-4 py-3 shadow-lg sticky top-0 z-20">
+        <div className="flex items-center justify-between max-w-md mx-auto">
+        <div className="leading-tight">
+        <h1 className="text-xl font-semibold tracking-wide text-white" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
+              Quiniela <span className="text-emerald-100">BCN</span>
+            </h1>
+            <p className="text-[10px] font-medium tracking-[0.3em] uppercase text-emerald-100/80 mt-0.5">
+              Mundial 2026
+            </p>
+          </div>
+          <span className="text-xs font-semibold bg-white/15 backdrop-blur rounded-full px-3 py-1.5 border border-white/20">
             {participante ? participante.nombre : "Invitado"}
           </span>
         </div>
       </header>
 
-      {pantalla === "predicciones" && (
-        haySesion ? (
-          <PantallaPredicciones
-            marcadores={marcadoresGrupos}
-            onCambio={alCambiarGrupos}
-            ordenFairPlay={ordenFairPlay}
-            onCambioFairPlay={alCambiarFairPlay}
+      <div key={pantalla} className="fade-in">
+        {pantalla === "predicciones" && (
+          haySesion ? (
+            <PantallaPredicciones
+              marcadores={marcadoresGrupos}
+              onCambio={alCambiarGrupos}
+              ordenFairPlay={ordenFairPlay}
+              onCambioFairPlay={alCambiarFairPlay}
+              zona={zona}
+              bloqueado={bloqueado}
+            />
+          ) : <PantallaSinLink />
+        )}
+        {pantalla === "bracket" && (
+          haySesion ? (
+            <PantallaBracket
+              marcadoresGrupos={marcadoresGrupos}
+              bracketPred={bracketPred}
+              ordenFairPlay={ordenFairPlay}
+              desempateTerceros={desempateTerceros}
+              onCambio={alCambiarBracket}
+              onCambioDesempateTerceros={alCambiarDesempateTerceros}
+              bloqueado={bloqueado}
+            />
+          ) : <PantallaSinLink />
+        )}
+        {pantalla === "premios" && (
+          haySesion ? (
+            <PantallaPremios
+              premios={premios}
+              onCambio={alCambiarPremios}
+              bloqueado={bloqueado}
+            />
+          ) : <PantallaSinLink />
+        )}
+       {pantalla === "posiciones" && <PantallaPosiciones miId={participante?.id} />}
+        {pantalla === "ajustes" && (
+          <PantallaAjustes
             zona={zona}
-            bloqueado={bloqueado}
+            onCambioZona={alCambiarZona}
+            onAbrirAdmin={() => setAdminAbierto(true)}
           />
-        ) : <PantallaSinLink />
-      )}
-      {pantalla === "bracket" && (
-        haySesion ? (
-          <PantallaBracket
-            marcadoresGrupos={marcadoresGrupos}
-            bracketPred={bracketPred}
-            ordenFairPlay={ordenFairPlay}
-            desempateTerceros={desempateTerceros}
-            onCambio={alCambiarBracket}
-            onCambioDesempateTerceros={alCambiarDesempateTerceros}
-            bloqueado={bloqueado}
-          />
-        ) : <PantallaSinLink />
-      )}
-      {pantalla === "premios" && (
-        haySesion ? (
-          <PantallaPremios
-            premios={premios}
-            onCambio={alCambiarPremios}
-            bloqueado={bloqueado}
-          />
-        ) : <PantallaSinLink />
-      )}
-      {pantalla === "posiciones" && <PantallaPosiciones />}
-      {pantalla === "ajustes" && (
-        <PantallaAjustes
-          zona={zona}
-          onCambioZona={alCambiarZona}
-          onAbrirAdmin={() => setAdminAbierto(true)}
-        />
-      )}
+        )}
+      </div>
 
       {mostrarBarraGuardado && (
         <div className="fixed bottom-16 inset-x-0 bg-white border-t px-4 py-3 z-20">
@@ -244,18 +279,18 @@ export default function App() {
             <button
               onClick={guardarTodo}
               disabled={estadoGuardado === "guardando"}
-              className="flex-1 bg-emerald-600 text-white font-semibold rounded-lg py-3 disabled:opacity-60"
+              className="flex-1 bg-emerald-600 text-white font-semibold rounded-lg py-3 disabled:opacity-60 active:scale-[0.99] transition-transform"
             >
               {estadoGuardado === "guardando" ? "Guardando…" : "Guardar predicción"}
             </button>
             {estadoGuardado === "guardado" && (
-              <span className="text-emerald-600 text-sm font-medium">✅ Guardado</span>
+              <span className="text-emerald-600 text-sm font-medium pop-in">✅ Guardado</span>
             )}
             {estadoGuardado === "cerrado" && (
-              <span className="text-red-600 text-sm font-medium">🔒 Predicciones cerradas</span>
+              <span className="text-red-600 text-sm font-medium pop-in">🔒 Predicciones cerradas</span>
             )}
             {estadoGuardado === "error" && (
-              <span className="text-red-600 text-sm font-medium">⚠️ Error</span>
+              <span className="text-red-600 text-sm font-medium pop-in">⚠️ Error</span>
             )}
           </div>
         </div>
@@ -276,8 +311,14 @@ function BotonMenu({ activo, onClick, icono, texto }) {
   return (
     <button
       onClick={onClick}
-      className={"flex-1 py-2.5 text-center font-medium " + (activo ? "text-emerald-600" : "text-slate-400")}
+      className={
+        "relative flex-1 py-2.5 text-center font-medium transition-all duration-150 active:scale-95 " +
+        (activo ? "text-emerald-600" : "text-slate-400")
+      }
     >
+      {activo && (
+        <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-emerald-600" />
+      )}
       <div className="text-lg leading-none">{icono}</div>
       <div className="text-[10px] mt-0.5">{texto}</div>
     </button>
