@@ -65,7 +65,7 @@ function Celda({ partido, rondas, marcadores, lado = "izq" }) {
   );
 }
 
-export default function VistaBracketCompleto({ rondas, marcadores, campeon, onCerrar }) {
+export default function VistaBracketCompleto({ rondas, marcadores, campeon, onCerrar, nombre }) {
   const campEq = campeon ? EQUIPO_POR_CODIGO[campeon] : null;
 
   // Columna de partidos con separación vertical.
@@ -83,7 +83,7 @@ export default function VistaBracketCompleto({ rondas, marcadores, campeon, onCe
     <div className="fixed inset-0 z-50 bg-slate-100 flex flex-col">
       {/* Cabecera */}
       <div className="bg-emerald-700 text-white px-4 py-3 flex items-center justify-between shrink-0">
-        <h2 className="text-sm font-bold">Mi bracket completo</h2>
+      <h2 className="text-sm font-bold">{nombre ? `Bracket de ${nombre}` : "Mi bracket completo"}</h2>
         <button
           onClick={onCerrar}
           className="text-sm bg-white/20 hover:bg-white/30 rounded-lg px-3 py-1.5 font-medium"

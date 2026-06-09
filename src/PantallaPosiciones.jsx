@@ -1,10 +1,22 @@
 import { useState, useEffect } from "react";
 import { obtenerPosiciones, suscribirCambios } from "./posiciones";
+import { leerDatosDeParticipantes } from "./admin";
+import { construirRound32, resolverBracketCompleto } from "./logica/motorBracket";
+import VistaBracketCompleto from "./VistaBracketCompleto";
 
-export default function PantallaPosiciones({ miId }) {
+// Un equipo "de verdad" es letra de grupo (A–L) + posición (1–4).
+function esEquipoCodigo(e) {
+  return /^[A-L][1-4]$/.test(String(e));
+}
+
+export default function PantallaPosiciones({ miId, bloqueado }) {
   const [tabla, setTabla] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [actualizando, setActualizando] = useState(false);
+
+  // Bracket de la persona seleccionada (solo con predicciones cerradas).
+  const [datosTodos, setDatosTodos] = useState({});
+  const [verBracket, setVerBracket] = useState(null); // { nombre, rondas, marcadores, campeon } | null
 
   useEffect(() => {
     let activo = true;
@@ -27,16 +39,57 @@ export default function PantallaPosiciones({ miId }) {
     };
   }, []);
 
+  // Cargamos las predicciones completas solo cuando ya están cerradas.
+  useEffect(() => {
+    if (!bloqueado) return;
+    leerDatosDeParticipantes().then(setDatosTodos);
+  }, [bloqueado]);
+
+  function abrirBracket(fila) {
+    if (!bloqueado) return;
+    const datos = datosTodos[fila.id];
+    if (!datos) return;
+    const base = construirRound32(
+      datos.marcadoresGrupos || {},
+      datos.ordenFairPlay || {},
+      datos.desempateTerceros || []
+    );
+    if (!base.hayPatron) {
+      // Bracket incompleto/no armable: mostramos vacío en vez de romper.
+      setVerBracket({ nombre: fila.nombre, rondas: {}, marcadores: {}, campeon: null });
+      return;
+    }
+    const avances = datos.bracket?.avances || {};
+    const marcadores = datos.bracket?.marcadores || {};
+    const resuelto = resolverBracketCompleto(base.r32, avances);
+
+    const finalEqs = resuelto.rondas.FINAL?.M104 || [null, null];
+    const idx = avances.M104;
+    const campeon =
+      idx != null && finalEqs[idx] && esEquipoCodigo(finalEqs[idx]) ? finalEqs[idx] : null;
+
+    setVerBracket({ nombre: fila.nombre, rondas: resuelto.rondas, marcadores, campeon });
+  }
+
   if (cargando)
     return <p className="text-center text-slate-400 mt-10">Cargando posiciones…</p>;
 
   const medalla = (i) => (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null);
   const podio = tabla.slice(0, 3);
-  // Reordena el podio visual: 2º · 1º · 3º (el 1º en el centro y más alto)
   const ordenPodio = [podio[1], podio[0], podio[2]].filter(Boolean);
 
   return (
     <main className="p-4 max-w-md mx-auto pb-24">
+      {verBracket && (
+        <VistaBracketCompleto
+          nombre={verBracket.nombre}
+          rondas={verBracket.rondas}
+          marcadores={verBracket.marcadores}
+          campeon={verBracket.campeon}
+          onCerrar={() => setVerBracket(null)}
+        />
+      )}
+
       {/* Banner */}
       <div className="rounded-2xl overflow-hidden shadow-md mb-5">
         <img src="/banner.png" alt="Mundial 2026" className="w-full block" />
@@ -50,6 +103,12 @@ export default function PantallaPosiciones({ miId }) {
         </span>
       </div>
 
+      {bloqueado && (
+        <p className="text-center text-[11px] text-slate-400 mb-3">
+          Toca a cualquier participante para ver su bracket completo.
+        </p>
+      )}
+
       {/* Podio */}
       {podio.length > 0 && (
         <div className="grid grid-cols-3 gap-2 mb-5 items-end">
@@ -59,8 +118,10 @@ export default function PantallaPosiciones({ miId }) {
             return (
               <div
                 key={p.id}
+                onClick={() => abrirBracket(p)}
                 className={
                   "rounded-2xl text-center px-2 transition-all " +
+                  (bloqueado ? "cursor-pointer active:scale-[0.97] " : "") +
                   (esCentro
                     ? "bg-gradient-to-b from-amber-50 to-white border-2 border-amber-300 shadow-md py-5"
                     : "bg-white border border-slate-200 shadow-sm py-3")
@@ -84,8 +145,10 @@ export default function PantallaPosiciones({ miId }) {
           return (
             <div
               key={fila.id}
+              onClick={() => abrirBracket(fila)}
               className={
                 "flex items-center gap-3 rounded-xl px-3 py-3 border transition-all " +
+                (bloqueado ? "cursor-pointer active:scale-[0.99] " : "") +
                 (soyYo
                   ? "bg-emerald-50 border-emerald-300 shadow-sm"
                   : i < 3
@@ -113,6 +176,7 @@ export default function PantallaPosiciones({ miId }) {
                 <div className="font-extrabold text-lg text-emerald-700 leading-none">{fila.puntos}</div>
                 <div className="text-[10px] text-slate-400 mt-1">{fila.partidosPredichos}/72</div>
               </div>
+              {bloqueado && <span className="text-slate-300 text-lg shrink-0">›</span>}
             </div>
           );
         })}

@@ -230,6 +230,36 @@ export async function guardarPremiosAdjudicados(adjudicaciones) {
   return { ok: true };
 }
 
+// Lee los datos COMPLETOS de predicción de todos los participantes.
+// Devuelve un mapa { idParticipante: datos } (marcadoresGrupos, bracket, ordenFairPlay, desempateTerceros, premios...).
+export async function leerDatosDeParticipantes() {
+  const { data, error } = await supabase
+    .from("predicciones")
+    .select("participante_id, datos");
+  if (error) {
+    console.error("Error al leer datos de participantes:", error);
+    return {};
+  }
+  const porId = {};
+  for (const pr of data) porId[pr.participante_id] = pr.datos || {};
+  return porId;
+}
+
+// Lee los marcadores de grupos de todos los participantes.
+// Devuelve un mapa { idParticipante: { "G-A1": {local,visita}, ... } }
+export async function leerMarcadoresDeParticipantes() {
+  const { data, error } = await supabase
+    .from("predicciones")
+    .select("participante_id, datos");
+  if (error) {
+    console.error("Error al leer marcadores:", error);
+    return {};
+  }
+  const porId = {};
+  for (const pr of data) porId[pr.participante_id] = pr.datos?.marcadoresGrupos || {};
+  return porId;
+}
+
 // Lee las predicciones de premios de todos los participantes (lo que escribieron).
 // Devuelve [{ id, nombre, premios: {botaOro, balonOro, asistidor, joven} }]
 export async function leerPremiosDeParticipantes() {

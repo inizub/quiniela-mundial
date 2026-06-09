@@ -161,8 +161,8 @@ export default function App() {
   if (adminAbierto) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-emerald-50/40 text-slate-900">
-        <header className="bg-slate-800 text-white px-4 py-3 shadow sticky top-0 z-20 flex items-center justify-between">
-          <h1 className="text-base font-bold">⚙️ Administración</h1>
+        <header className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-600 text-white px-4 py-3 shadow-lg sticky top-0 z-20 flex items-center justify-between">
+          <h1 className="text-lg font-semibold tracking-wide text-emerald-50" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>⚙️ Administración</h1>
           <button
             onClick={() => setAdminAbierto(false)}
             className="text-sm bg-white/20 hover:bg-white/30 rounded-lg px-3 py-1.5 font-medium"
@@ -263,7 +263,7 @@ export default function App() {
             />
           ) : <PantallaSinLink />
         )}
-       {pantalla === "posiciones" && <PantallaPosiciones miId={participante?.id} />}
+       {pantalla === "posiciones" && <PantallaPosiciones miId={participante?.id} bloqueado={bloqueado} />}
         {pantalla === "ajustes" && (
           <PantallaAjustes
             zona={zona}
